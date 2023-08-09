@@ -4,4 +4,5 @@ public enum PaymentSheetEvents: String {
     case Completed = "paymentSheetCompleted"
     case Canceled = "paymentSheetCanceled"
     case Failed = "paymentSheetFailed"
+    case Confirm = "paymentSheetConfirm"
 }

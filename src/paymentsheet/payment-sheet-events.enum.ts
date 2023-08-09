@@ -3,7 +3,7 @@ export enum PaymentSheetEventsEnum {
     FailedToLoad = "paymentSheetFailedToLoad",
     Completed = "paymentSheetCompleted",
     Canceled = "paymentSheetCanceled",
-    Failed = "paymentSheetFailed"
+    Failed = "paymentSheetFailed",
 }
 
 export type PaymentSheetResultInterface =

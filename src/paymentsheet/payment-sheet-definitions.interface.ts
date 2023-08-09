@@ -1,6 +1,11 @@
 import type { PluginListenerHandle } from '@capacitor/core';
 
-import type { CreatePaymentSheetOption } from '../shared';
+import type {
+  CompleteFinalizePaymentSheetOption,
+  CreatePaymentSheetOption,
+  FinalizePaymentSheetCallback,
+  FinalizePaymentSheetCallbackID
+} from '../shared';
 
 import type { PaymentSheetEventsEnum, PaymentSheetResultInterface } from './payment-sheet-events.enum';
 
@@ -9,6 +14,8 @@ export interface PaymentSheetDefinitions {
   presentPaymentSheet(): Promise<{
     paymentResult: PaymentSheetResultInterface;
   }>;
+  finalizePaymentSheet(callback: FinalizePaymentSheetCallback): Promise<FinalizePaymentSheetCallbackID>
+  completeFinalizePaymentSheet(options: CompleteFinalizePaymentSheetOption): Promise<void>;
 
   addListener(
     eventName: PaymentSheetEventsEnum.Loaded,

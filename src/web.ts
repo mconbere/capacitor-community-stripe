@@ -1,4 +1,5 @@
 import { WebPlugin } from '@capacitor/core';
+import { loadStripe } from '@stripe/stripe-js';
 import type { Stripe, StripeCardNumberElement } from '@stripe/stripe-js';
 import type { Components } from '@stripe-elements/stripe-elements';
 import type { FormSubmitEvent } from '@stripe-elements/stripe-elements/dist/types/interfaces';
@@ -6,11 +7,14 @@ import type { HTMLStencilElement } from '@stripe-elements/stripe-elements/dist/t
 
 import type {
   ApplePayResultInterface,
+  CompleteFinalizePaymentSheetOption,
   CreateApplePayOption,
   CreateGooglePayOption,
   CreateIdentityVerificationSheetOption,
   CreatePaymentFlowOption,
   CreatePaymentSheetOption,
+  FinalizePaymentSheetCallback,
+  FinalizePaymentSheetCallbackID,
   GooglePayResultInterface,
   IdentityVerificationSheetResultInterface,
   PaymentFlowResultInterface,
@@ -92,6 +96,10 @@ export class StripeWeb extends WebPlugin implements StripePlugin {
       this.paymentSheet.zip = options.withZipCode;
     }
 
+    if (options.finalizeOnServer === true) {
+      this.paymentSheet.shouldUseDefaultFormSubmitAction = false
+    }
+
     this.notifyListeners(PaymentSheetEventsEnum.Loaded, null);
   }
 
@@ -135,6 +143,33 @@ export class StripeWeb extends WebPlugin implements StripePlugin {
     return {
       paymentResult: PaymentSheetEventsEnum.Completed,
     };
+  }
+
+  async finalizePaymentSheet(callback: FinalizePaymentSheetCallback): Promise<FinalizePaymentSheetCallbackID> {
+    if (!this.paymentSheet) {
+      throw new Error();
+    }
+
+    const stripe = await loadStripe(this.paymentSheet.publishableKey);
+    if (stripe === null) {
+      throw new Error(); 
+    }
+
+    this.paymentSheet.handleSubmit = async (event: Event, props: FormSubmitEvent) => {
+      event;
+      let result = await stripe.createPaymentMethod({ type: 'card', card: props.cardNumberElement });
+      if (result.error !== undefined) {
+        throw new Error();
+      }
+      callback({paymentMethod: { id: result.paymentMethod.id }, shouldSavePaymentMethod: false});
+    }
+
+    return "FinalizePaymentSheetCallback"
+  }
+
+  async completeFinalizePaymentSheet(options: CompleteFinalizePaymentSheetOption): Promise<void> {
+    options;
+    // Nothing to do here, Stripe web does not expect a post-confirm call to stripe.
   }
 
   async createPaymentFlow(options: CreatePaymentFlowOption): Promise<void> {

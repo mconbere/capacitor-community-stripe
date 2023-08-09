@@ -15,6 +15,29 @@ export interface CreatePaymentSheetOption extends BasePaymentOption {
   setupIntentClientSecret?: string;
 }
 
+export interface CompleteFinalizePaymentSheetOption {
+  /**
+   * Set the client secret of the payment intent finalized on the server.
+   */
+  clientSecret?: string;
+
+  /**
+   * Set error to indicate there was an error confirming the payment intent while finalizing on the server.
+   */
+  error?: string;
+}
+
+export interface PaymentMethod {
+  /**
+   * Stripe identifier of the payment method.
+   */
+  id: string;
+}
+
+export type FinalizePaymentSheetCallback = (message: {paymentMethod: PaymentMethod; shouldSavePaymentMethod: boolean}) => void;
+
+export type FinalizePaymentSheetCallbackID = string;
+
 /**
  * @extends BasePaymentOption
  */
@@ -100,6 +123,21 @@ export interface BasePaymentOption {
    * @default true
    */
   withZipCode?: boolean
+
+  /**
+   * Set finalize on server.
+   */
+  finalizeOnServer?: boolean;
+
+  /**
+   * Set amount intended to be collected in the smallest currency unit (e.g. 100 cents to charge $1.00). Shown in Apple Pay, Buy now pay later UIs, the Pay button, and influences available payment methods.
+   */
+  amount?: number;
+
+  /**
+   * Set currency using three-letter ISO currency code. Filters out payment methods based on supported currency.
+   */
+  currency?: string;
 }
 
 export interface CreateApplePayOption {

@@ -5,6 +5,8 @@ import StripePaymentSheet
 class PaymentSheetExecutor: NSObject {
     weak var plugin: StripePlugin?
     var paymentSheet: PaymentSheet?
+    var confirmCall: CAPPluginCall?
+    var continueConfirmHandler: CheckedContinuation<String, Error>?
 
     func createPaymentSheet(_ call: CAPPluginCall) {
         let paymentIntentClientSecret = call.getString("paymentIntentClientSecret") ?? nil
@@ -62,10 +64,34 @@ class PaymentSheetExecutor: NSObject {
             configuration.customer = .init(id: customerId!, ephemeralKeySecret: customerEphemeralKeySecret!)
         }
 
-        if setupIntentClientSecret != nil {
-            self.paymentSheet = PaymentSheet(setupIntentClientSecret: setupIntentClientSecret!, configuration: configuration)
+        let finalizeOnServer = call.getBool("finalizeOnServer") ?? false
+
+        if finalizeOnServer {
+            if setupIntentClientSecret != nil {
+                let intentConfiguration = PaymentSheet.IntentConfiguration(
+                    mode: .setup(currency: call.getString("currency"), setupFutureUsage: .offSession),
+                    confirmHandler: self.confirmHandler)
+                self.paymentSheet = PaymentSheet(intentConfiguration: intentConfiguration, configuration: configuration)
+            } else {
+                guard let amount = call.getInt("amount") else {
+                    call.reject("Invalid Params. When finalizeOnServer with payment intent is used amount must be set.")
+                    return
+                }
+                guard let currency = call.getString("currency") else {
+                    call.reject("Invalid Params. When finalizeOnServer with payment intent is used currency must be set.")
+                    return
+                }
+                let intentConfiguration = PaymentSheet.IntentConfiguration(
+                    mode: .payment(amount: amount, currency: currency),
+                    confirmHandler: self.confirmHandler)
+                self.paymentSheet = PaymentSheet(intentConfiguration: intentConfiguration, configuration: configuration)
+            }
         } else {
-            self.paymentSheet = PaymentSheet(paymentIntentClientSecret: paymentIntentClientSecret!, configuration: configuration)
+            if setupIntentClientSecret != nil {
+                self.paymentSheet = PaymentSheet(setupIntentClientSecret: setupIntentClientSecret!, configuration: configuration)
+            } else {
+                self.paymentSheet = PaymentSheet(paymentIntentClientSecret: paymentIntentClientSecret!, configuration: configuration)
+            }
         }
 
         self.plugin?.notifyListeners(PaymentSheetEvents.Loaded.rawValue, data: [:])
@@ -73,7 +99,7 @@ class PaymentSheetExecutor: NSObject {
     }
 
     func presentPaymentSheet(_ call: CAPPluginCall) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             if let rootViewController = self.plugin?.getRootVC() {
                 self.paymentSheet?.present(from: rootViewController) { paymentResult in
                     // MARK: Handle the payment result
@@ -89,6 +115,60 @@ class PaymentSheetExecutor: NSObject {
                         call.resolve(["paymentResult": PaymentSheetEvents.Failed.rawValue])
                     }
                 }
+            }
+        }
+    }
+
+    func finalizePaymentSheet(_ call: CAPPluginCall) {
+        call.keepAlive = true
+        self.plugin?.bridge?.saveCall(call)
+        if let confirmCall = self.confirmCall {
+            self.plugin?.bridge?.releaseCall(confirmCall)
+        }
+        self.confirmCall = call
+    }
+
+    func completeFinalizePaymentSheet(_ call: CAPPluginCall) {
+        guard let continueConfirmHandler = continueConfirmHandler else {
+            call.reject("Invalid state. Must be called inside the finalizePaymentSheet callback.")
+            return
+        }
+
+        if let error = call.getString("error") {
+            continueConfirmHandler.resume(throwing: NSError(domain: "capacitor-community/stripe", code: 0, userInfo: ["error": error]))
+            call.resolve()
+            return
+        }
+
+        guard let clientSecret = call.getString("clientSecret") else {
+            continueConfirmHandler.resume(throwing: NSError(domain: "capacitor-community/stripe", code: 0, userInfo: ["error": "missing clientSecret"]))
+            call.reject("Invalid Param. Missing clientSecret or error.")
+            return
+        }
+
+        continueConfirmHandler.resume(returning: clientSecret)
+        call.resolve()
+    }
+
+    private func confirmHandler(
+        _ paymentMethod: STPPaymentMethod,
+        _ shouldSavePaymentMethod: Bool,
+        _ intentCreationCallback: @escaping ((Result<String, Error>) -> Void)
+    ) -> Void {
+        Task {
+            do {
+                let result = try await withCheckedThrowingContinuation { continuation in
+                    self.continueConfirmHandler = continuation
+                    self.confirmCall?.resolve([
+                        "paymentMethod": [
+                            "id": paymentMethod.stripeId,
+                        ],
+                        "shouldSavePaymentMethod": shouldSavePaymentMethod,
+                    ])
+                }
+                intentCreationCallback(.success(result))
+            } catch {
+                intentCreationCallback(.failure(error))
             }
         }
     }

@@ -1,5 +1,5 @@
 import {Component, OnInit} from '@angular/core';
-import {ApplePayEventsEnum, GooglePayEventsEnum, PaymentFlowEventsEnum, PaymentSheetEventsEnum, Stripe} from '@capacitor-community/stripe';
+import {ApplePayEventsEnum, GooglePayEventsEnum, PaymentFlowEventsEnum, PaymentSheetEventsEnum, PaymentMethod, Stripe} from '@capacitor-community/stripe';
 
 import {environment} from '../../environments/environment';
 import {HttpClient} from '@angular/common/http';
@@ -184,6 +184,42 @@ export class DemoPage implements OnInit {
       enableGooglePay: true,
       // eslint-disable-next-line @typescript-eslint/naming-convention
       GooglePayIsTesting: true,
+    });
+  }
+
+  async createPaymentSheetWithFinalizeOnServer() {
+    const { paymentIntentId, paymentIntent, ephemeralKey, customer } = await this.http.post<{
+      paymentIntentId: string;
+      paymentIntent: string;
+      ephemeralKey: string;
+      customer: string;
+      amount: 1099;
+      currency: 'usd';
+    }>(environment.api + 'intent', {}).pipe(first()).toPromise(Promise);
+
+    await Stripe.createPaymentSheet({
+      paymentIntentClientSecret: paymentIntent,
+      customerEphemeralKeySecret: ephemeralKey,
+      customerId: customer,
+      merchantDisplayName: 'rdlabo',
+      enableGooglePay: true,
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      GooglePayIsTesting: true,
+      finalizeOnServer: true,
+      amount: 1099,
+      currency: 'usd',
+    });
+    await Stripe.finalizePaymentSheet(async ({paymentMethod, shouldSavePaymentMethod}) => {
+      console.log(`got paymentMethod: ${JSON.stringify(paymentMethod)}`);
+      const { clientSecret } = await this.http.post<{
+        clientSecret: string
+      }>(environment.api + "intent/confirm", {
+        paymentIntent: paymentIntentId,
+        stripeId: paymentMethod.id,
+        shouldSavePaymentMethod: shouldSavePaymentMethod,
+      }).pipe(first()).toPromise(Promise);
+
+      await Stripe.completeFinalizePaymentSheet({ clientSecret: clientSecret });
     });
   }
 

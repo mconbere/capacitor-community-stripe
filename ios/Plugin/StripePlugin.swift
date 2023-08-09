@@ -70,6 +70,14 @@ public class StripePlugin: CAPPlugin {
         self.paymentSheetExecutor.presentPaymentSheet(call)
     }
 
+    @objc func finalizePaymentSheet(_ call: CAPPluginCall) {
+        self.paymentSheetExecutor.finalizePaymentSheet(call)
+    }
+
+    @objc func completeFinalizePaymentSheet(_ call: CAPPluginCall) {
+        self.paymentSheetExecutor.completeFinalizePaymentSheet(call)
+    }
+
     @objc func createIdentityVerificationSheet(_ call: CAPPluginCall) {
         self.identityVerificationSheetExecutor.createIdentityVerificationSheet(call)
     }
