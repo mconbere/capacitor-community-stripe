@@ -6,6 +6,7 @@ import type { HTMLStencilElement } from 'stripe-pwa-elements/dist/types/stencil-
 
 import type {
   ApplePayResultInterface,
+  CompleteConfirmPaymentSheetOption,
   CreateApplePayOption,
   CreateGooglePayOption,
   CreateIdentityVerificationSheetOption,
@@ -69,6 +70,10 @@ export class StripeWeb extends WebPlugin implements StripePlugin {
   }
 
   async createPaymentSheet(options: CreatePaymentSheetOption): Promise<void> {
+    if (options.confirmOnServer) {
+      throw new Error('Option confirmOnServer not implemented on web.');
+    }
+
     if (!this.publishableKey) {
       this.notifyListeners(PaymentSheetEventsEnum.FailedToLoad, null);
       return;
@@ -135,6 +140,11 @@ export class StripeWeb extends WebPlugin implements StripePlugin {
     return {
       paymentResult: PaymentSheetEventsEnum.Completed,
     };
+  }
+
+  async completeConfirmPaymentSheet(options: CompleteConfirmPaymentSheetOption): Promise<void> {
+    options;
+    throw new Error('Method not implemented.')
   }
 
   async createPaymentFlow(options: CreatePaymentFlowOption): Promise<void> {

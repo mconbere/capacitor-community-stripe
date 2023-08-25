@@ -56,8 +56,10 @@ Learn at [the official @capacitor-community/stripe documentation](https://stripe
 * [`addListener(PaymentFlowEventsEnum.Created, ...)`](#addlistenerpaymentfloweventsenumcreated)
 * [`createPaymentSheet(...)`](#createpaymentsheet)
 * [`presentPaymentSheet()`](#presentpaymentsheet)
+* [`completeConfirmPaymentSheet(...)`](#completeconfirmpaymentsheet)
 * [`addListener(PaymentSheetEventsEnum.Loaded, ...)`](#addlistenerpaymentsheeteventsenumloaded)
 * [`addListener(PaymentSheetEventsEnum.FailedToLoad, ...)`](#addlistenerpaymentsheeteventsenumfailedtoload)
+* [`addListener(PaymentSheetEventsEnum.ConfirmOnServer, ...)`](#addlistenerpaymentsheeteventsenumconfirmonserver)
 * [`addListener(PaymentSheetEventsEnum.Completed, ...)`](#addlistenerpaymentsheeteventsenumcompleted)
 * [`addListener(PaymentSheetEventsEnum.Canceled, ...)`](#addlistenerpaymentsheeteventsenumcanceled)
 * [`addListener(PaymentSheetEventsEnum.Failed, ...)`](#addlistenerpaymentsheeteventsenumfailed)
@@ -608,6 +610,19 @@ presentPaymentSheet() => Promise<{ paymentResult: PaymentSheetResultInterface; }
 --------------------
 
 
+### completeConfirmPaymentSheet(...)
+
+```typescript
+completeConfirmPaymentSheet(options: CompleteConfirmPaymentSheetOption) => Promise<void>
+```
+
+| Param         | Type                                                                                            |
+| ------------- | ----------------------------------------------------------------------------------------------- |
+| **`options`** | <code><a href="#completeconfirmpaymentsheetoption">CompleteConfirmPaymentSheetOption</a></code> |
+
+--------------------
+
+
 ### addListener(PaymentSheetEventsEnum.Loaded, ...)
 
 ```typescript
@@ -634,6 +649,22 @@ addListener(eventName: PaymentSheetEventsEnum.FailedToLoad, listenerFunc: (error
 | ------------------ | -------------------------------------------------------------------------------------- |
 | **`eventName`**    | <code><a href="#paymentsheeteventsenum">PaymentSheetEventsEnum.FailedToLoad</a></code> |
 | **`listenerFunc`** | <code>(error: string) =&gt; void</code>                                                |
+
+**Returns:** <code><a href="#pluginlistenerhandle">PluginListenerHandle</a></code>
+
+--------------------
+
+
+### addListener(PaymentSheetEventsEnum.ConfirmOnServer, ...)
+
+```typescript
+addListener(eventName: PaymentSheetEventsEnum.ConfirmOnServer, listenerFunc: ({ paymentMethod, shouldSavePaymentMethod }: { paymentMethod: PaymentMethod; shouldSavePaymentMethod: boolean; }) => void) => PluginListenerHandle
+```
+
+| Param              | Type                                                                                                                                                                   |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`eventName`**    | <code><a href="#paymentsheeteventsenum">PaymentSheetEventsEnum.ConfirmOnServer</a></code>                                                                              |
+| **`listenerFunc`** | <code>({ paymentMethod, shouldSavePaymentMethod }: { paymentMethod: <a href="#paymentmethod">PaymentMethod</a>; shouldSavePaymentMethod: boolean; }) =&gt; void</code> |
 
 **Returns:** <code><a href="#pluginlistenerhandle">PluginListenerHandle</a></code>
 
@@ -807,21 +838,51 @@ iOS Only
 
 #### CreatePaymentSheetOption
 
-| Prop                             | Type                                       | Description                                                                                      | Default                 |
-| -------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------ | ----------------------- |
-| **`paymentIntentClientSecret`**  | <code>string</code>                        | Any documentation call 'paymentIntent' Set paymentIntentClientSecret or setupIntentClientSecret  |                         |
-| **`setupIntentClientSecret`**    | <code>string</code>                        | Any documentation call 'paymentIntent' Set paymentIntentClientSecret or setupIntentClientSecret  |                         |
-| **`customerEphemeralKeySecret`** | <code>string</code>                        | Any documentation call 'ephemeralKey'                                                            |                         |
-| **`customerId`**                 | <code>string</code>                        | Any documentation call 'customer'                                                                |                         |
-| **`enableApplePay`**             | <code>boolean</code>                       | If you set payment method ApplePay, this set true                                                | <code>false</code>      |
-| **`applePayMerchantId`**         | <code>string</code>                        | If set enableApplePay false, Plugin ignore here.                                                 |                         |
-| **`enableGooglePay`**            | <code>boolean</code>                       | If you set payment method GooglePay, this set true                                               | <code>false</code>      |
-| **`GooglePayIsTesting`**         | <code>boolean</code>                       |                                                                                                  | <code>false,</code>     |
-| **`countryCode`**                | <code>string</code>                        | use ApplePay and GooglePay. If set enableApplePay and enableGooglePay false, Plugin ignore here. | <code>"US"</code>       |
-| **`merchantDisplayName`**        | <code>string</code>                        |                                                                                                  | <code>"App Name"</code> |
-| **`returnURL`**                  | <code>string</code>                        |                                                                                                  | <code>""</code>         |
-| **`style`**                      | <code>'alwaysLight' \| 'alwaysDark'</code> | iOS Only                                                                                         | <code>undefined</code>  |
-| **`withZipCode`**                | <code>boolean</code>                       | Platform: Web only Show ZIP code field.                                                          | <code>true</code>       |
+| Prop                             | Type                                                     | Description                                                                                                                                                                                                                                                                                                                   | Default                  |
+| -------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| **`paymentIntentClientSecret`**  | <code>string</code>                                      | Any documentation call 'paymentIntent' Set paymentIntentClientSecret or setupIntentClientSecret                                                                                                                                                                                                                               |                          |
+| **`setupIntentClientSecret`**    | <code>string</code>                                      | Any documentation call 'paymentIntent' Set paymentIntentClientSecret or setupIntentClientSecret                                                                                                                                                                                                                               |                          |
+| **`confirmOnServer`**            | <code>boolean</code>                                     | Set confirm on server. If confirmOnServer is set to true, listen for Stripe.<a href="#paymentsheeteventsenum">PaymentSheetEventsEnum.ConfirmOnServer</a> event and perform a server confirmation. After server confirmation call Stripe.completeConfirmPaymentSheet with the resulting payment intent client secret or error. | <code>false</code>       |
+| **`amount`**                     | <code>number</code>                                      | Set amount for confirmOnServer payment intent. Amount intended to be collected in the smallest currency unit (e.g. 100 cents to charge $1.00). Shown in Apple Pay, Buy now pay later UIs, the Pay button, and influences available payment methods.                                                                           |                          |
+| **`currency`**                   | <code>string</code>                                      | Set currency for confirmOnServer. Required for payment intent, optional for setup intent. Three-letter ISO currency code. Filters out payment methods based on supported currency.                                                                                                                                            |                          |
+| **`setupFutureUsage`**           | <code>'offSession' \| 'onSession'</code>                 | Set setupFutureUsage for confirmOnServer. Optional for payment intent, required for setup intent. Indicates that you intend to make future payments with this PaymentIntent’s payment method.                                                                                                                                 |                          |
+| **`paymentMethodTypes`**         | <code>string[]</code>                                    | Set paymentMethodTypes for confirmOnServer. A list of payment method types to display to the customer. If unset, Stripe dynamically determines the payment methods using account Dashboard settings.                                                                                                                          |                          |
+| **`onBehalfOf`**                 | <code>string</code>                                      | Set onBehalfOf for confirmOnServer. The account (if any) for which the funds of the intent are intended.                                                                                                                                                                                                                      |                          |
+| **`captureMethod`**              | <code>'automatic' \| 'manual' \| 'automaticAsync'</code> | Set captureMethod. Controls when the funds will be captured.                                                                                                                                                                                                                                                                  | <code>'automatic'</code> |
+| **`customerEphemeralKeySecret`** | <code>string</code>                                      | Any documentation call 'ephemeralKey'                                                                                                                                                                                                                                                                                         |                          |
+| **`customerId`**                 | <code>string</code>                                      | Any documentation call 'customer'                                                                                                                                                                                                                                                                                             |                          |
+| **`enableApplePay`**             | <code>boolean</code>                                     | If you set payment method ApplePay, this set true                                                                                                                                                                                                                                                                             | <code>false</code>       |
+| **`applePayMerchantId`**         | <code>string</code>                                      | If set enableApplePay false, Plugin ignore here.                                                                                                                                                                                                                                                                              |                          |
+| **`enableGooglePay`**            | <code>boolean</code>                                     | If you set payment method GooglePay, this set true                                                                                                                                                                                                                                                                            | <code>false</code>       |
+| **`GooglePayIsTesting`**         | <code>boolean</code>                                     |                                                                                                                                                                                                                                                                                                                               | <code>false,</code>      |
+| **`countryCode`**                | <code>string</code>                                      | use ApplePay and GooglePay. If set enableApplePay and enableGooglePay false, Plugin ignore here.                                                                                                                                                                                                                              | <code>"US"</code>        |
+| **`merchantDisplayName`**        | <code>string</code>                                      |                                                                                                                                                                                                                                                                                                                               | <code>"App Name"</code>  |
+| **`returnURL`**                  | <code>string</code>                                      |                                                                                                                                                                                                                                                                                                                               | <code>""</code>          |
+| **`style`**                      | <code>'alwaysLight' \| 'alwaysDark'</code>               | iOS Only                                                                                                                                                                                                                                                                                                                      | <code>undefined</code>   |
+| **`withZipCode`**                | <code>boolean</code>                                     | Platform: Web only Show ZIP code field.                                                                                                                                                                                                                                                                                       | <code>true</code>        |
+
+
+#### CompleteConfirmPaymentSheetOptionClientSecret
+
+| Prop               | Type                | Description                                                          |
+| ------------------ | ------------------- | -------------------------------------------------------------------- |
+| **`clientSecret`** | <code>string</code> | Set the client secret of the payment intent finalized on the server. |
+| **`error`**        |                     | error is not allowed when setting clientSecret.                      |
+
+
+#### CompleteConfirmPaymentSheetOptionError
+
+| Prop               | Type                | Description                                                                           |
+| ------------------ | ------------------- | ------------------------------------------------------------------------------------- |
+| **`error`**        | <code>string</code> | Set error to indicate there was an error confirming the payment intent on the server. |
+| **`clientSecret`** |                     | clientSecret is not allowed when setting error.                                       |
+
+
+#### PaymentMethod
+
+| Prop     | Type                | Description                              |
+| -------- | ------------------- | ---------------------------------------- |
+| **`id`** | <code>string</code> | Stripe identifier of the payment method. |
 
 
 #### StripeInitializationOptions
@@ -884,6 +945,11 @@ iOS Only
 <code><a href="#paymentsheeteventsenum">PaymentSheetEventsEnum.Completed</a> | <a href="#paymentsheeteventsenum">PaymentSheetEventsEnum.Canceled</a> | <a href="#paymentsheeteventsenum">PaymentSheetEventsEnum.Failed</a></code>
 
 
+#### CompleteConfirmPaymentSheetOption
+
+<code><a href="#completeconfirmpaymentsheetoptionclientsecret">CompleteConfirmPaymentSheetOptionClientSecret</a> | <a href="#completeconfirmpaymentsheetoptionerror">CompleteConfirmPaymentSheetOptionError</a></code>
+
+
 ### Enums
 
 
@@ -937,13 +1003,14 @@ iOS Only
 
 #### PaymentSheetEventsEnum
 
-| Members            | Value                                   |
-| ------------------ | --------------------------------------- |
-| **`Loaded`**       | <code>"paymentSheetLoaded"</code>       |
-| **`FailedToLoad`** | <code>"paymentSheetFailedToLoad"</code> |
-| **`Completed`**    | <code>"paymentSheetCompleted"</code>    |
-| **`Canceled`**     | <code>"paymentSheetCanceled"</code>     |
-| **`Failed`**       | <code>"paymentSheetFailed"</code>       |
+| Members               | Value                                      |
+| --------------------- | ------------------------------------------ |
+| **`Loaded`**          | <code>"paymentSheetLoaded"</code>          |
+| **`FailedToLoad`**    | <code>"paymentSheetFailedToLoad"</code>    |
+| **`Completed`**       | <code>"paymentSheetCompleted"</code>       |
+| **`ConfirmOnServer`** | <code>"paymentSheetConfirmOnServer"</code> |
+| **`Canceled`**        | <code>"paymentSheetCanceled"</code>        |
+| **`Failed`**          | <code>"paymentSheetFailed"</code>          |
 
 </docgen-api>
 
