@@ -20,6 +20,7 @@ import com.stripe.android.googlepaylauncher.GooglePayLauncher
 import com.stripe.android.identity.IdentityVerificationSheet
 import com.stripe.android.identity.IdentityVerificationSheet.Companion.create
 import com.stripe.android.identity.IdentityVerificationSheet.VerificationFlowResult
+import com.stripe.android.model.PaymentMethod
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import com.stripe.android.paymentsheet.model.PaymentOption
@@ -32,6 +33,9 @@ class StripePlugin : Plugin() {
     private var googlePayCallbackId: String? = null
     private var identityVerificationCallbackId: String? = null
     private var metaData: MetaData = MetaData { this.context }
+
+    private var paymentSheet: PaymentSheet? = null
+    private var confirmPaymentSheet: PaymentSheet? = null
 
     private val paymentSheetExecutor = PaymentSheetExecutor({ this.context }, { this.activity }, { eventName: String?, data: JSObject? -> this.notifyListeners(eventName, data) },
             logTag
@@ -69,9 +73,8 @@ class StripePlugin : Plugin() {
         } else {
             Logger.info("Plugin didn't prepare Google Pay.")
         }
-        paymentSheetExecutor.paymentSheet = PaymentSheet(
-                activity
-        ) { result -> paymentSheetExecutor.onPaymentSheetResult(bridge, paymentSheetCallbackId, result) }
+        paymentSheet = newPaymentSheet()
+        confirmPaymentSheet = newConfirmOnServerPaymentSheet()
         paymentFlowExecutor.flowController = PaymentSheet.FlowController.create(
                 activity,
                 { paymentOption: PaymentOption? -> paymentFlowExecutor.onPaymentOption(bridge, paymentFlowCallbackId, paymentOption) },
@@ -118,6 +121,24 @@ class StripePlugin : Plugin() {
         }
     }
 
+    private fun newPaymentSheet(): PaymentSheet {
+        return PaymentSheet(
+                activity
+        ) { result -> paymentSheetExecutor.onPaymentSheetResult(bridge, paymentSheetCallbackId, result) }
+    }
+
+    private fun newConfirmOnServerPaymentSheet(): PaymentSheet {
+        return PaymentSheet(
+                activity,
+                { paymentMethod: PaymentMethod, shouldSavePaymentMethod: Boolean ->
+                    paymentSheetExecutor.onConfirm(bridge, paymentSheetCallbackId, paymentMethod, shouldSavePaymentMethod)
+                },
+                { result: PaymentSheetResult ->
+                    paymentSheetExecutor.onPaymentSheetResult(bridge, paymentSheetCallbackId, result)
+                }
+        )
+    }
+
     @PluginMethod
     fun initialize(call: PluginCall) {
         try {
@@ -137,6 +158,12 @@ class StripePlugin : Plugin() {
 
     @PluginMethod
     fun createPaymentSheet(call: PluginCall) {
+        val confirmOnServer = call.getBoolean("confirmOnServer") ?: false
+        paymentSheetExecutor.paymentSheet = if (confirmOnServer) {
+            confirmPaymentSheet
+        } else {
+            paymentSheet
+        }
         paymentSheetExecutor.createPaymentSheet(call)
     }
 
@@ -157,6 +184,11 @@ class StripePlugin : Plugin() {
         paymentSheetCallbackId = call.callbackId
         bridge.saveCall(call)
         paymentSheetExecutor.presentPaymentSheet(call)
+    }
+
+    @PluginMethod
+    fun completeConfirmPaymentSheet(call: PluginCall) {
+        paymentSheetExecutor.completeConfirmPaymentSheet(call)
     }
 
     @PluginMethod
