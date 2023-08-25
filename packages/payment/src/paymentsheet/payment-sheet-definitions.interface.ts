@@ -1,6 +1,10 @@
 import type { PluginListenerHandle } from '@capacitor/core';
 
-import type { CreatePaymentSheetOption } from '../shared';
+import type {
+  CompleteConfirmPaymentSheetOption,
+  CreatePaymentSheetOption,
+  PaymentMethod,
+} from '../shared';
 
 import type { PaymentSheetEventsEnum, PaymentSheetResultInterface } from './payment-sheet-events.enum';
 
@@ -9,6 +13,7 @@ export interface PaymentSheetDefinitions {
   presentPaymentSheet(): Promise<{
     paymentResult: PaymentSheetResultInterface;
   }>;
+  completeConfirmPaymentSheet(options: CompleteConfirmPaymentSheetOption): Promise<void>;
 
   addListener(
     eventName: PaymentSheetEventsEnum.Loaded,
@@ -18,6 +23,11 @@ export interface PaymentSheetDefinitions {
   addListener(
     eventName: PaymentSheetEventsEnum.FailedToLoad,
     listenerFunc: (error: string) => void,
+  ): PluginListenerHandle;
+
+  addListener(
+    eventName: PaymentSheetEventsEnum.ConfirmOnServer,
+    listenerFunc: ({paymentMethod, shouldSavePaymentMethod}: {paymentMethod: PaymentMethod, shouldSavePaymentMethod: boolean}) => void,
   ): PluginListenerHandle;
 
   addListener(

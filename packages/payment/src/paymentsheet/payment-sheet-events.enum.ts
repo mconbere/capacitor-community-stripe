@@ -2,6 +2,7 @@ export enum PaymentSheetEventsEnum {
     Loaded = "paymentSheetLoaded",
     FailedToLoad = "paymentSheetFailedToLoad",
     Completed = "paymentSheetCompleted",
+    ConfirmOnServer = "paymentSheetConfirmOnServer",
     Canceled = "paymentSheetCanceled",
     Failed = "paymentSheetFailed"
 }
