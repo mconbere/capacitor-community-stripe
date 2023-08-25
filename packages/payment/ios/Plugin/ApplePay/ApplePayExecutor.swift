@@ -77,11 +77,9 @@ class ApplePayExecutor: NSObject, ApplePayContextDelegate {
         if let paymentRequest = self.paymentRequest {
             if let applePayContext = STPApplePayContext(paymentRequest: paymentRequest, delegate: self) {
                 DispatchQueue.main.async {
-                    if let rootViewController = self.plugin?.getRootVC() {
-                        self.plugin?.bridge?.saveCall(call)
-                        self.payCallId = call.callbackId
-                        applePayContext.presentApplePay(on: rootViewController)
-                    }
+                    self.plugin?.bridge?.saveCall(call)
+                    self.payCallId = call.callbackId
+                    applePayContext.presentApplePay()
                 }
             } else {
                 call.reject("STPApplePayContext is failed")
@@ -152,15 +150,13 @@ extension ApplePayExecutor {
                 call.resolve(["paymentResult": ApplePayEvents.Completed.rawValue])
                 break
             case .error:
-                self.plugin?.notifyListeners(ApplePayEvents.Failed.rawValue, data: ["error": error?.localizedDescription])
+                self.plugin?.notifyListeners(ApplePayEvents.Failed.rawValue, data: ["error": error?.localizedDescription as Any])
                 call.resolve(["paymentResult": ApplePayEvents.Failed.rawValue])
                 break
             case .userCancellation:
                 self.plugin?.notifyListeners(ApplePayEvents.Canceled.rawValue, data: [:])
                 call.resolve(["paymentResult": ApplePayEvents.Canceled.rawValue])
                 break
-            @unknown default:
-                fatalError()
             }
         }
     }

@@ -8,6 +8,7 @@ CAP_PLUGIN(StripePlugin, "Stripe",
            CAP_PLUGIN_METHOD(handleURLCallback, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(createPaymentSheet, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(presentPaymentSheet, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(completeConfirmPaymentSheet, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(createPaymentFlow, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(presentPaymentFlow, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(confirmPaymentFlow, CAPPluginReturnPromise);
