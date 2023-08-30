@@ -1,3 +1,9 @@
+export class ConfirmPaymentIntentDTO {
+  paymentIntentId: string;
+  stripeId: string;
+  shouldSavePaymentMethod: boolean;
+}
+
 export class CreatePaymentIntentDTO {
   amount?: number;
   currency?: string;

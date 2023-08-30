@@ -1,7 +1,7 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 import { Stripe } from 'stripe';
-import {CreatePaymentIntentDTO, CreateSetupIntentDTO} from './payment-intent.dto';
+import { ConfirmPaymentIntentDTO, CreatePaymentIntentDTO, CreateSetupIntentDTO } from './payment-intent.dto';
 
 @Controller()
 export class AppController {
@@ -15,6 +15,7 @@ export class AppController {
   async createPaymentIntent(
     @Body() createPaymentIntentDto: CreatePaymentIntentDTO,
   ): Promise<{
+    paymentIntentId: string;
     paymentIntent: string;
     ephemeralKey: string;
     customer: string;
@@ -38,6 +39,7 @@ export class AppController {
       customer: customerId,
     });
     return {
+      paymentIntentId: paymentIntent.id,
       paymentIntent: paymentIntent.client_secret,
       ephemeralKey: ephemeralKey.secret,
       customer: customerId,
@@ -77,6 +79,7 @@ export class AppController {
   async createIntentWithoutCustomer(
     @Body() createPaymentIntentDto: CreatePaymentIntentDTO,
   ): Promise<{
+    paymentIntentId: string;
     paymentIntent: string;
   }> {
     /**
@@ -87,8 +90,28 @@ export class AppController {
       currency: createPaymentIntentDto.currency || 'usd',
     });
     return {
+      paymentIntentId: paymentIntent.id,
       paymentIntent: paymentIntent.client_secret,
     };
+  }
+
+  @Post('intent/confirm')
+  async confirmIntent(
+    @Body() confirmPaymentIntentDto: ConfirmPaymentIntentDTO,
+  ): Promise<{
+    clientSecret: string;
+  }> {
+    /**
+     * https://stripe.com/docs/payments/finalize-payments-on-the-server
+     */
+    const confirmedPaymentIntent = await this.stripe.paymentIntents.confirm(
+      confirmPaymentIntentDto.paymentIntentId,
+      {
+        payment_method: confirmPaymentIntentDto.stripeId,
+        setup_future_usage: confirmPaymentIntentDto.shouldSavePaymentMethod ? 'off_session' : undefined,
+      }
+    );
+    return { clientSecret: confirmedPaymentIntent.client_secret }
   }
 
   @Post('identify')
