@@ -11,6 +11,7 @@ import {environment} from '../../environments/environment';
 import {HttpClient} from '@angular/common/http';
 import {IonicModule} from '@ionic/angular';
 import {firstValueFrom} from 'rxjs';
+import { PluginListenerHandle } from '@capacitor/core';
 
 @Component({
     selector: 'app-demo',
@@ -26,6 +27,7 @@ export class DemoPage implements OnInit {
   processGooglePay: 'willReady' | 'Ready' = 'willReady';
   isApplePayAvailable = false;
   isGooglePayAvailable = false;
+  paymentSheetConfirmListener: PluginListenerHandle;
 
   constructor(
     private http: HttpClient,
@@ -40,6 +42,10 @@ export class DemoPage implements OnInit {
 
     Stripe.addListener(PaymentSheetEventsEnum.FailedToLoad, () => {
       console.log('PaymentSheetEventsEnum.FailedToLoad');
+    });
+
+    Stripe.addListener(PaymentSheetEventsEnum.ConfirmOnServer, () => {
+      console.log('PaymentSheetEventsEnum.ConfirmOnServer')
     });
 
     Stripe.addListener(PaymentSheetEventsEnum.Completed, () => {
@@ -192,6 +198,55 @@ export class DemoPage implements OnInit {
       merchantDisplayName: 'rdlabo',
       enableGooglePay: true,
       GooglePayIsTesting: true,
+    });
+  }
+
+  async createPaymentSheetWithConfirmOnServer(withCustomer = true) {
+    const { paymentIntentId, ephemeralKey, customer } = withCustomer ?
+      await firstValueFrom(this.http.post<{
+        paymentIntentId: string;
+        paymentIntent: string;
+        ephemeralKey: string;
+        customer: string;
+      }>(environment.api + 'intent', {})) :
+      await firstValueFrom(this.http.post<{
+        paymentIntentId: string;
+        paymentIntent: string,
+        ephemeralKey: undefined,
+        customer: undefined,
+      }>(environment.api + 'intent/without-customer', {}));
+
+    await Stripe.createPaymentSheet({
+      confirmOnServer: true,
+      customerEphemeralKeySecret: ephemeralKey,
+      customerId: customer,
+      merchantDisplayName: 'rdlabo',
+      amount: 1199,
+      currency: 'usd',
+    });
+
+    if (this.paymentSheetConfirmListener) {
+      this.paymentSheetConfirmListener.remove()
+    }
+    this.paymentSheetConfirmListener = Stripe.addListener(PaymentSheetEventsEnum.ConfirmOnServer, async ({ paymentMethod, shouldSavePaymentMethod }) => {
+      try {
+        const { clientSecret, error } = await firstValueFrom(this.http.post<{
+          clientSecret?: string;
+          error?: string;
+        }>(environment.api + 'intent/confirm', {
+          paymentIntentId: paymentIntentId,
+          stripeId: paymentMethod.id,
+          shouldSavePaymentMethod: shouldSavePaymentMethod,
+        }));
+
+        if (error) {
+          throw Error(error)
+        }
+
+        await Stripe.completeConfirmPaymentSheet({ clientSecret: clientSecret });
+      } catch (ex) {
+        await Stripe.completeConfirmPaymentSheet({ error: ex.message });
+      }
     });
   }
 
